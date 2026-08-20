@@ -1,0 +1,25 @@
+version: 0.2
+phases:
+  install:
+    commands:
+      - pip install flake8 pytest
+  pre_build:
+    commands:
+      - echo "Running linting..."
+      - flake8 app.py
+      - echo "Running unit tests..."
+      - pytest test_app.py -v
+      - echo "Logging into Amazon ECR..."
+      - aws ecr get-login-password --region ap-south-1 | docker login --username AWS --password-stdin $ECR_URI
+  build:
+    commands:
+      - echo "Building Docker image..."
+      - IMAGE_TAG=$CODEBUILD_RESOLVED_SOURCE_VERSION
+      - docker build -t $ECR_URI:$IMAGE_TAG .
+      - docker tag $ECR_URI:$IMAGE_TAG $ECR_URI:latest
+      - echo "Pushing Docker image to ECR..."
+      - docker push $ECR_URI:$IMAGE_TAG
+      - docker push $ECR_URI:latest
+  post_build:
+    commands:
+      - echo "Build complete. Pushed image tag $IMAGE_TAG to ECR."
